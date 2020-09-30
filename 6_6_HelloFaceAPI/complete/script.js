@@ -1,7 +1,6 @@
 const cElem = document.getElementById('canvas');
 const video = document.getElementById('video');
 
-//load asynchronously
 Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri('../../models'),
     faceapi.nets.faceLandmark68Net.loadFromUri('../../models'),
@@ -9,17 +8,14 @@ Promise.all([
     faceapi.nets.faceExpressionNet.loadFromUri('../../models')
 ]).then(startVideo)
 
-//hook up webcam to video element
 function startVideo() {
     navigator.getUserMedia(
         { video: {} },
-        //coming from the webcam
         stream => video.srcObject = stream,
         err => console.error(err)
     )
 }
 
-//event listener
 video.addEventListener('play', () => {
     const displaySize = { width: video.width, height: video.height }
     faceapi.matchDimensions(cElem, displaySize);
