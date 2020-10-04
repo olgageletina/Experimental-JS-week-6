@@ -1,0 +1,35 @@
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+canvas, #labels {
+  position: absolute;
+}
+
+canvas {
+  border: 2px solid black;
+}
+
+.label  {
+  /* IMPORTANT FOR TRANSFORMS TO WORK */
+  position: absolute; 
+
+  color: black;
+  background-color: #05C7F2;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 6px;
+  line-height: 8px;
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+}
