@@ -6,6 +6,49 @@ const faces = [{ "a": 0, "b": 36, "c": 17 }, { "a": 17, "b": 36, "c": 18 }, { "a
 //number of vertices for mesh
 const numVertices = 48;
 
+let startingExpression = 'neutral';
+const clock = new THREE.Clock;
+
+let moodChanges = 0;
+
+const uniforms = {
+    u_time: { value: 0.0 },
+    u_duration: { value: 2.00 },
+    u_resolution: { value: { x: canvasElm.width, y: canvasElm.height } },
+    u_transition: { value: 1.00 },
+    u_color1: { value: new THREE.Color(0x687273) },
+    u_color2: { value: new THREE.Color(0x687273) },
+};
+
+const vShader = `
+  void main() {
+    gl_Position = projectionMatrix* modelViewMatrix *vec4(position, 1.0);
+ }
+`
+
+const fShader = `
+  uniform vec2 u_resolution;
+  uniform vec3 u_color1;
+  uniform vec3 u_color2;
+  
+  
+  uniform float u_time;
+  uniform float u_transition;
+  uniform float u_duration;
+
+  void main() {
+    vec2 uv = gl_FragCoord.xy/u_resolution;
+
+    vec2 pos = -1.0 + 4.0 * uv;
+    float posCurve = sin(pos.x*pos.y+u_time/0.8); //get that curvy shape within our mask
+    vec3 colorT1 = mix(u_color1, u_color2, posCurve); 
+    vec3 colorT2 = mix(u_color2, u_color1, posCurve);
+
+    gl_FragColor = vec4(colorT1*(1.00-u_transition) + colorT2*u_transition, 1.0 ); //u_transition will be either 0 or 1, when 1 the first block is 0 and second block is 1 when 0 the first block is 1 and second block in 0
+ }
+`
+
+
 //load asynchronously
 Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri('../../models'),
@@ -39,12 +82,57 @@ video.addEventListener('play', () => {
         if (resizeDetections[0]) {
             const facePos = resizeDetections[0].landmarks.positions.slice(0, numVertices);
 
-            for (var i = 0; i < numVertices; i++) {
-                var nextVertex = geometry.vertices[i];
+            for (let i = 0; i < numVertices; i++) {
+                let nextVertex = geometry.vertices[i];
                 nextVertex.x = facePos[i]._x;
                 nextVertex.y = facePos[i]._y;
             }
             geometry.verticesNeedUpdate = true;
+
+            let newExpression = resizeDetections[0].expressions.asSortedArray()[0].expression;
+
+            // console.log('new  expression ' + newExpression + ' and starting expression ' + startingExpression + ' time ' + uniforms.u_time.value + ' mood change ' + moodChanges);
+
+            if (startingExpression !== newExpression && uniforms.u_time.value > 1.99) {
+                moodChanges++;
+                const whichColor = moodChanges % 2 ? ['u_color1', 0.00] : ['u_color2', 1.00];
+                uniforms.u_transition.value = whichColor[1];
+
+                switch (newExpression) {
+                    case 'angry':
+                        uniforms[whichColor[0]].value = new THREE.Color(0xF20505);
+                        // red
+                        break;
+                    case 'disgusted':
+                        uniforms[whichColor[0]].value = new THREE.Color(0x95A113);
+                        // olive green
+                        break;
+                    case 'fearful':
+                        uniforms[whichColor[0]].value = new THREE.Color(0xFFFFF2);
+                        // off white
+                        break;
+                    case 'happy':
+                        uniforms[whichColor[0]].value = new THREE.Color(0xA80870);
+                        // magenta
+                        break;
+                    case 'neutral':
+                        uniforms[whichColor[0]].value = new THREE.Color(0x687273);
+                        // grey
+                        break;
+                    case 'sad':
+                        uniforms[whichColor[0]].value = new THREE.Color(0x4F66DB);
+                        // blue
+                        break;
+                    case 'surprised':
+                        uniforms[whichColor[0]].value = new THREE.Color(0xF36610);
+                        // orange
+                        break;
+                }
+
+                uniforms.u_time.value = 0;
+                startingExpression = newExpression;
+            }
+
         }
     }, 100)
     createShape();
@@ -77,7 +165,7 @@ function createShape() {
     geometry.computeFaceNormals();
     geometry.computeVertexNormals();
 
-    const material = new THREE.MeshBasicMaterial({ color: 0x898989, side: THREE.DoubleSide });
+    const material = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vShader, fragmentShader: fShader, side: THREE.DoubleSide });
 
     shapeMesh = new THREE.Mesh(geometry, material);
 
@@ -87,4 +175,11 @@ function createShape() {
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
+    let delta = clock.getDelta();
+
+    if (uniforms.u_time.value < uniforms.u_duration.value) {
+        uniforms.u_time.value += delta;
+    } else {
+        uniforms.u_time.value = uniforms.u_duration.value;
+    }
 }
